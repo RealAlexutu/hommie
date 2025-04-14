@@ -10,7 +10,6 @@ WIDTH, HEIGHT = 900, 500
 FPS = 60
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-CYAN = (0, 255, 255)
 RED = (255, 50, 50)
 
 # Screen setup
@@ -22,12 +21,13 @@ clock = pygame.time.Clock()
 class Player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
+
         # Animation frames
         self.animations = {
             "idle": [pygame.image.load("assets\\p1_stand.png")],
             "run": [pygame.image.load("assets\\p2_walk04.png")],
             "jump": [pygame.image.load("assets\\p1_jump.png")],
-            "fly": [pygame.image.load("assets\\p1_jump.png")],  # Placeholder for jetpack animation
+            "fly": [pygame.image.load("assets\\p1_jump.png")],
         }
         self.state = "idle"
         self.anim_index = 0
@@ -40,13 +40,6 @@ class Player(pygame.sprite.Sprite):
         self.gravity = 0.8
         self.jump_strength = -15
         self.grounded = False
-        self.dash_cooldown = 0
-
-        # Stats
-        self.health = 3
-        self.max_health = 3
-        self.speed = 5
-        self.has_shield = False
         self.double_jump = False
         self.used_double_jump = False
 
@@ -54,6 +47,14 @@ class Player(pygame.sprite.Sprite):
         self.jetpack_enabled = False
         self.jetpack_timer = 0
         self.is_flying = False
+
+        # Load and scale the jetpack to fit the character
+        self.jetpack_raw = pygame.image.load("assets\\jetpack_200x200_transparent.png").convert_alpha()
+        self.jetpack_img = pygame.transform.scale(self.jetpack_raw, (70, 70))  # scale it down to fit
+
+        # Stats
+        self.health = 3
+        self.max_health = 3
 
     def activate_jetpack(self, duration=300):
         self.jetpack_enabled = True
@@ -66,14 +67,14 @@ class Player(pygame.sprite.Sprite):
         if keys[pygame.K_j] and not self.jetpack_enabled:
             self.activate_jetpack()
 
-        # === Jetpack Flying ===
+        # === Jetpack flying ===
         if self.jetpack_enabled and keys[pygame.K_SPACE]:
             self.velocity_y = -5
             self.is_flying = True
         else:
             self.is_flying = False
 
-        # === Jumping (if jetpack is off) ===
+        # === Jumping ===
         if not self.jetpack_enabled and keys[pygame.K_SPACE]:
             if self.grounded:
                 self.velocity_y = self.jump_strength
@@ -83,11 +84,11 @@ class Player(pygame.sprite.Sprite):
                 self.velocity_y = self.jump_strength
                 self.used_double_jump = True
 
-        # === Apply Gravity ===
+        # === Gravity ===
         self.velocity_y += self.gravity
         self.rect.y += self.velocity_y
 
-        # === Boundaries ===
+        # === Stay on screen ===
         if self.rect.bottom >= HEIGHT - 20:
             self.rect.bottom = HEIGHT - 20
             self.velocity_y = 0
@@ -121,102 +122,15 @@ class Player(pygame.sprite.Sprite):
             self.anim_index = 0
         self.image = frames[int(self.anim_index)]
 
-          
+    def draw(self, surface):
+        # Calculate position for jetpack to sit on the back
+        jetpack_x = self.rect.left -40    # slight inward shift
+        jetpack_y = self.rect.top +20   # vertical alignment
+        surface.blit(self.jetpack_img, (jetpack_x, jetpack_y))
 
-    def update(self):
-        keys = pygame.key.get_pressed()
+        # Draw player sprite
+        surface.blit(self.image, self.rect)
 
-        # Jumping
-        if keys[pygame.K_SPACE]:
-            if self.grounded:
-                self.velocity_y = self.jump_strength
-                self.grounded = False
-                self.used_double_jump = False
-            elif self.double_jump and not self.used_double_jump:
-                self.velocity_y = self.jump_strength
-                self.used_double_jump = True
-
-        # Gravity
-        self.velocity_y += self.gravity
-        self.rect.y += self.velocity_y
-
-        # Ground check
-        if self.rect.bottom >= HEIGHT - 20:
-            self.rect.bottom = HEIGHT - 20
-            self.velocity_y = 0
-            self.grounded = True
-            self.used_double_jump = False
-
-
-        
-        # Update animation state
-        if self.state != "dash":
-            if not self.grounded:
-                self.state = "jump"
-            else:
-                self.state = "run" if keys[pygame.K_RIGHT] else "idle"  
-
-def update(self):
-    keys = pygame.key.get_pressed()
-
-    # === Jetpack control ===
-    if self.jetpack_enabled and keys[pygame.K_SPACE]:
-        self.velocity_y = -5
-        self.is_flying = True
-    else:
-        self.is_flying = False
-
-
-
-    # === Jumping (if jetpack is not active) ===
-    if not self.jetpack_enabled and keys[pygame.K_SPACE]:
-        if self.grounded:
-            self.velocity_y = self.jump_strength
-            self.grounded = False
-            self.used_double_jump = False
-        elif self.double_jump and not self.used_double_jump:
-            self.velocity_y = self.jump_strength
-            self.used_double_jump = True
-
-    # === Gravity ===
-    self.velocity_y += self.gravity
-    self.rect.y += self.velocity_y
-
-    # === Stay inside the screen ===
-    if self.rect.bottom >= HEIGHT - 20:
-        self.rect.bottom = HEIGHT - 20
-        self.velocity_y = 0
-        self.grounded = True
-        self.used_double_jump = False
-
-    if self.rect.top <= 0:
-        self.rect.top = 0
-        self.velocity_y = 0
-
-    # === Animation states ===
-    if self.jetpack_enabled and self.is_flying:
-        self.state = "fly"
-    elif not self.grounded:
-        self.state = "jump"
-    else:
-        self.state = "run" if keys[pygame.K_RIGHT] else "idle"
-
-
-
-    self.animate()
-
-       
-
-    def animate(self):
-        frames = self.animations[self.state]
-        self.anim_index += 0.1
-        if self.anim_index >= len(frames):
-            self.anim_index = 0
-        self.image = frames[int(self.anim_index)]
-
-
-
-    
 
 # Obstacle class
 class Obstacle(pygame.sprite.Sprite):
@@ -232,6 +146,7 @@ class Obstacle(pygame.sprite.Sprite):
         self.rect.x -= 5
         if self.rect.right < 0:
             self.kill()
+
 
 # Main function
 def main():
@@ -251,7 +166,7 @@ def main():
                 running = False
 
         # Update
-        player_group.update()
+        player.update()
         obstacle_group.update()
 
         # Obstacle generation
@@ -268,12 +183,12 @@ def main():
             if player.health <= 0:
                 running = False
 
-        # Scoring
+        # Score
         score += 1
 
-        # Draw
+        # Draw everything
         screen.fill(BLACK)
-        player_group.draw(screen)
+        player.draw(screen)
         obstacle_group.draw(screen)
 
         # UI
@@ -286,6 +201,7 @@ def main():
 
     pygame.quit()
     sys.exit()
+
 
 if __name__ == "__main__":
     main()

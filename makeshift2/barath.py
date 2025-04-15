@@ -6,29 +6,30 @@ import random
 pygame.init()
 
 # Constants
-WIDTH, HEIGHT = 900, 500
+WIDTH, HEIGHT = 1280, 720
 FPS = 60
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 RED = (255, 50, 50)
 
-# Screen setup
+# Setup screen
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Cyber Runner")
 clock = pygame.time.Clock()
 
-# Player class
+
 class Player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
 
-        # Animation frames
+        # Animations
         self.animations = {
-            "idle": [pygame.image.load("assets\\p1_stand.png")],
-            "run": [pygame.image.load("assets\\p2_walk04.png")],
-            "jump": [pygame.image.load("assets\\p1_jump.png")],
-            "fly": [pygame.image.load("assets\\p1_jump.png")],
+            "idle": [pygame.image.load("assets/p1_stand.png")],
+            "run": [pygame.image.load("assets/p2_walk04.png")],
+            "jump": [pygame.image.load("assets/p1_jump.png")],
+            "fly": [pygame.image.load("assets/p1_jump.png")],
         }
+
         self.state = "idle"
         self.anim_index = 0
         self.image = self.animations[self.state][0]
@@ -48,9 +49,13 @@ class Player(pygame.sprite.Sprite):
         self.jetpack_timer = 0
         self.is_flying = False
 
-        # Load and scale the jetpack to fit the character
-        self.jetpack_raw = pygame.image.load("assets\\jetpack_200x200_transparent.png").convert_alpha()
-        self.jetpack_img = pygame.transform.scale(self.jetpack_raw, (70, 70))  # scale it down to fit
+        # Load and scale jetpack (now BIGGER)
+        raw_jetpack = pygame.image.load("assets/jetpack_200x200_transparent.png").convert_alpha()
+        self.jetpack_img = pygame.transform.scale(raw_jetpack, (80, 80))  
+
+        # Load and scale flame (now BIGGER)
+        raw_flame = pygame.image.load("assets/flame.png").convert_alpha()
+        self.flame_img = pygame.transform.scale(raw_flame, (40, 50)) 
 
         # Stats
         self.health = 3
@@ -63,18 +68,18 @@ class Player(pygame.sprite.Sprite):
     def update(self):
         keys = pygame.key.get_pressed()
 
-        # === Activate Jetpack with J ===
+        # Activate jetpack
         if keys[pygame.K_j] and not self.jetpack_enabled:
             self.activate_jetpack()
 
-        # === Jetpack flying ===
+        # Flying
         if self.jetpack_enabled and keys[pygame.K_SPACE]:
             self.velocity_y = -5
             self.is_flying = True
         else:
             self.is_flying = False
 
-        # === Jumping ===
+        # Jumping
         if not self.jetpack_enabled and keys[pygame.K_SPACE]:
             if self.grounded:
                 self.velocity_y = self.jump_strength
@@ -84,11 +89,11 @@ class Player(pygame.sprite.Sprite):
                 self.velocity_y = self.jump_strength
                 self.used_double_jump = True
 
-        # === Gravity ===
+        # Gravity
         self.velocity_y += self.gravity
         self.rect.y += self.velocity_y
 
-        # === Stay on screen ===
+        # Boundaries
         if self.rect.bottom >= HEIGHT - 20:
             self.rect.bottom = HEIGHT - 20
             self.velocity_y = 0
@@ -99,13 +104,13 @@ class Player(pygame.sprite.Sprite):
             self.rect.top = 0
             self.velocity_y = 0
 
-        # === Jetpack timer ===
+        # Jetpack timer
         if self.jetpack_enabled:
             self.jetpack_timer -= 1
             if self.jetpack_timer <= 0:
                 self.jetpack_enabled = False
 
-        # === Animation state ===
+        # Animation state
         if self.jetpack_enabled and self.is_flying:
             self.state = "fly"
         elif not self.grounded:
@@ -123,16 +128,21 @@ class Player(pygame.sprite.Sprite):
         self.image = frames[int(self.anim_index)]
 
     def draw(self, surface):
-        # Calculate position for jetpack to sit on the back
-        jetpack_x = self.rect.left -40    # slight inward shift
-        jetpack_y = self.rect.top +20   # vertical alignment
+        # Draw jetpack behind player (adjusted position)
+        jetpack_x = self.rect.left - 45
+        jetpack_y = self.rect.top +15
         surface.blit(self.jetpack_img, (jetpack_x, jetpack_y))
 
-        # Draw player sprite
+        # Draw flame (if flying) (adjusted position)
+        if self.jetpack_enabled and self.is_flying:
+            flame_x = self.rect.left - 25
+            flame_y = self.rect.bottom - 25
+            surface.blit(self.flame_img, (flame_x, flame_y))
+
+        # Draw the player
         surface.blit(self.image, self.rect)
 
 
-# Obstacle class
 class Obstacle(pygame.sprite.Sprite):
     def __init__(self, x):
         super().__init__()
@@ -148,10 +158,8 @@ class Obstacle(pygame.sprite.Sprite):
             self.kill()
 
 
-# Main function
 def main():
     player = Player()
-    player_group = pygame.sprite.Group(player)
     obstacle_group = pygame.sprite.Group()
 
     obstacle_timer = 0
@@ -165,11 +173,10 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
 
-        # Update
         player.update()
         obstacle_group.update()
 
-        # Obstacle generation
+        # Spawn obstacles
         obstacle_timer += 1
         if obstacle_timer > 90:
             obstacle = Obstacle(WIDTH + random.randint(0, 200))
@@ -186,7 +193,7 @@ def main():
         # Score
         score += 1
 
-        # Draw everything
+        # Draw
         screen.fill(BLACK)
         player.draw(screen)
         obstacle_group.draw(screen)

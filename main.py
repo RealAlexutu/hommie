@@ -15,6 +15,15 @@ clock = pygame.time.Clock()
 
 BG = pygame.image.load("assets/Background.png")
 
+pygame.mixer.init()
+pygame.mixer.music.load("assets/menu_music.mp3")
+pygame.mixer.music.set_volume(0.5)
+pygame.mixer.music.play(-1)
+
+# ✅ Load damage sound
+damage_sound = pygame.mixer.Sound("assets/damage_sound.wav")
+damage_sound.set_volume(0.5)
+
 def get_font(size): 
     return pygame.font.Font("assets/font.ttf", size)
 
@@ -22,7 +31,6 @@ class Player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
 
-        
         self.animations = {
             "idle": [pygame.image.load("assets/p1_stand.png")],
             "run": [pygame.image.load("assets/p2_walk04.png")],
@@ -36,7 +44,6 @@ class Player(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = (100, HEIGHT // 2)
 
-        
         self.velocity_y = 0
         self.gravity = 0.8
         self.jump_strength = -15
@@ -44,7 +51,6 @@ class Player(pygame.sprite.Sprite):
         self.double_jump = False
         self.used_double_jump = False
 
-        
         raw_jetpack = pygame.image.load("assets/jetpack_200x200_transparent.png").convert_alpha()
         self.jetpack_img = pygame.transform.scale(raw_jetpack, (80,80))
 
@@ -55,7 +61,6 @@ class Player(pygame.sprite.Sprite):
         self.jetpack_timer = 0  
         self.is_flying = False
 
-        
         self.health = 3
         self.max_health = 3
 
@@ -130,7 +135,6 @@ class Player(pygame.sprite.Sprite):
 
         surface.blit(self.image, self.rect)
 
-
 class Obstacle(pygame.sprite.Sprite):
     def __init__(self, x):
         super().__init__()
@@ -145,8 +149,11 @@ class Obstacle(pygame.sprite.Sprite):
         if self.rect.right < 0:
             self.kill()
 
-
 def play():
+    pygame.mixer.music.stop()
+    pygame.mixer.music.load("assets/game_music.mp3")
+    pygame.mixer.music.play(-1)
+
     player = Player()
     obstacle_group = pygame.sprite.Group()
 
@@ -172,6 +179,7 @@ def play():
             obstacle_timer = 0
 
         if pygame.sprite.spritecollide(player, obstacle_group, False):
+            damage_sound.play()  # ✅ Play sound on damage
             player.health -= 1
             obstacle_group.empty()
             if player.health <= 0:
@@ -190,21 +198,43 @@ def play():
 
         pygame.display.flip()
 
-    main_menu()  
+    pygame.mixer.music.stop()
+    pygame.mixer.music.load("assets/menu_music.mp3")
+    pygame.mixer.music.play(-1)
 
+    main_menu()
 
 def options():
+    slider_x = 440
+    slider_y = 300
+    slider_width = 400
+    slider_height = 10
+    handle_radius = 12
+    dragging = False
+
+    volume = pygame.mixer.music.get_volume()
+
     while True:
         OPTIONS_MOUSE_POS = pygame.mouse.get_pos()
+        mouse_x, mouse_y = OPTIONS_MOUSE_POS
 
         SCREEN.fill("white")
 
-        OPTIONS_TEXT = get_font(45).render("This is the OPTIONS screen.", True, "Black")
-        OPTIONS_RECT = OPTIONS_TEXT.get_rect(center=(640, 260))
+        OPTIONS_TEXT = get_font(45).render("Options", True, "Black")
+        OPTIONS_RECT = OPTIONS_TEXT.get_rect(center=(640, 100))
         SCREEN.blit(OPTIONS_TEXT, OPTIONS_RECT)
 
-        OPTIONS_BACK = Button(image=None, pos=(640, 460),
-                              text_input="BACK", font=get_font(75), base_color="Black", hovering_color="Green")
+        pygame.draw.rect(SCREEN, "gray", (slider_x, slider_y, slider_width, slider_height))
+        pygame.draw.rect(SCREEN, "green", (slider_x, slider_y, int(slider_width * volume), slider_height))
+
+        handle_x = slider_x + int(slider_width * volume)
+        pygame.draw.circle(SCREEN, "blue", (handle_x, slider_y + slider_height // 2), handle_radius)
+
+        vol_text = get_font(30).render(f"Volume: {int(volume * 100)}%", True, "black")
+        SCREEN.blit(vol_text, (slider_x, slider_y - 40))
+
+        OPTIONS_BACK = Button(image=None, pos=(640, 500),
+                              text_input="BACK", font=get_font(50), base_color="Black", hovering_color="Green")
         OPTIONS_BACK.changeColor(OPTIONS_MOUSE_POS)
         OPTIONS_BACK.update(SCREEN)
 
@@ -212,14 +242,27 @@ def options():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-            if event.type == pygame.MOUSEBUTTONDOWN:
+
+            elif event.type == pygame.MOUSEBUTTONDOWN:
                 if OPTIONS_BACK.checkForInput(OPTIONS_MOUSE_POS):
-                    main_menu()
+                    return
+                if abs(mouse_x - handle_x) < handle_radius and abs(mouse_y - (slider_y + slider_height // 2)) < handle_radius:
+                    dragging = True
+
+            elif event.type == pygame.MOUSEBUTTONUP:
+                dragging = False
+
+            elif event.type == pygame.MOUSEMOTION and dragging:
+                new_volume = (mouse_x - slider_x) / slider_width
+                volume = max(0.0, min(1.0, new_volume))
+                pygame.mixer.music.set_volume(volume)
 
         pygame.display.update()
 
-
 def main_menu():
+    pygame.mixer.music.load("assets/menu_music.mp3")
+    pygame.mixer.music.play(-1)
+
     while True:
         SCREEN.blit(BG, (0, 0))
 

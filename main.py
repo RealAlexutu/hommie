@@ -20,11 +20,14 @@ pygame.mixer.music.load("assets/menu_music.mp3")
 pygame.mixer.music.set_volume(0.5)
 pygame.mixer.music.play(-1)
 
-# ✅ Load damage sound
 damage_sound = pygame.mixer.Sound("assets/damage_sound.wav")
 damage_sound.set_volume(0.5)
 
-def get_font(size): 
+pause_icon = pygame.image.load("assets/pause_icon.png").convert_alpha()
+pause_icon = pygame.transform.scale(pause_icon, (40, 40))
+pause_rect = pause_icon.get_rect(topright=(WIDTH - 10, 10))
+
+def get_font(size):
     return pygame.font.Font("assets/font.ttf", size)
 
 class Player(pygame.sprite.Sprite):
@@ -52,13 +55,13 @@ class Player(pygame.sprite.Sprite):
         self.used_double_jump = False
 
         raw_jetpack = pygame.image.load("assets/jetpack_200x200_transparent.png").convert_alpha()
-        self.jetpack_img = pygame.transform.scale(raw_jetpack, (80,80))
+        self.jetpack_img = pygame.transform.scale(raw_jetpack, (80, 80))
 
         raw_flame = pygame.image.load("assets/flame.png").convert_alpha()
         self.flame_img = pygame.transform.scale(raw_flame, (40, 50))
 
         self.jetpack_enabled = False
-        self.jetpack_timer = 0  
+        self.jetpack_timer = 0
         self.is_flying = False
 
         self.health = 3
@@ -149,6 +152,109 @@ class Obstacle(pygame.sprite.Sprite):
         if self.rect.right < 0:
             self.kill()
 
+def countdown():
+    font_big = get_font(150)
+    for i in range(3, 0, -1):
+        start_ticks = pygame.time.get_ticks()
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+
+            SCREEN.fill(BLACK)
+            count_text = font_big.render(str(i), True, WHITE)
+            count_rect = count_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+            SCREEN.blit(count_text, count_rect)
+
+            pygame.display.flip()
+
+            if pygame.time.get_ticks() - start_ticks >= 1000:
+                break
+            clock.tick(FPS)
+
+def pause_menu(score):
+    RESUME_BUTTON = Button(None, (640, 300), "RESUME", get_font(50), WHITE, "Green")
+    MENU_BUTTON = Button(None, (640, 400), "MAIN MENU", get_font(50), WHITE, "Green")
+    QUIT_BUTTON = Button(None, (640, 500), "QUIT", get_font(50), WHITE, "Green")
+
+    while True:
+        SCREEN.fill(BLACK)
+
+        PAUSE_TEXT = get_font(75).render("Game Paused", True, WHITE)
+        PAUSE_RECT = PAUSE_TEXT.get_rect(center=(WIDTH // 2, 100))
+        SCREEN.blit(PAUSE_TEXT, PAUSE_RECT)
+
+        SCORE_TEXT = get_font(40).render(f"Score: {score}", True, WHITE)
+        SCREEN.blit(SCORE_TEXT, (WIDTH // 2 - 70, 180))
+
+        mouse_pos = pygame.mouse.get_pos()
+        for btn in [RESUME_BUTTON, MENU_BUTTON, QUIT_BUTTON]:
+            btn.changeColor(mouse_pos)
+            btn.update(SCREEN)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    countdown()
+                    return
+
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if RESUME_BUTTON.checkForInput(mouse_pos):
+                    countdown()
+                    return
+                if MENU_BUTTON.checkForInput(mouse_pos):
+                    main_menu()
+                if QUIT_BUTTON.checkForInput(mouse_pos):
+                    pygame.quit()
+                    sys.exit()
+
+        pygame.display.update()
+        clock.tick(FPS)
+
+def game_over_screen(score):
+    RETRY_BUTTON = Button(None, (640, 350), "RETRY", get_font(50), WHITE, "Green")
+    MENU_BUTTON = Button(None, (640, 450), "MAIN MENU", get_font(50), WHITE, "Green")
+    QUIT_BUTTON = Button(None, (640, 550), "QUIT", get_font(50), WHITE, "Green")
+
+    while True:
+        SCREEN.fill(BLACK)
+
+        GAME_OVER_TEXT = get_font(75).render("Game Over", True, RED)
+        GAME_OVER_RECT = GAME_OVER_TEXT.get_rect(center=(WIDTH // 2, 150))
+        SCREEN.blit(GAME_OVER_TEXT, GAME_OVER_RECT)
+
+        SCORE_TEXT = get_font(45).render(f"Final Score: {score}", True, WHITE)
+        SCORE_RECT = SCORE_TEXT.get_rect(center=(WIDTH // 2, 250))
+        SCREEN.blit(SCORE_TEXT, SCORE_RECT)
+
+        mouse_pos = pygame.mouse.get_pos()
+        for btn in [RETRY_BUTTON, MENU_BUTTON, QUIT_BUTTON]:
+            btn.changeColor(mouse_pos)
+            btn.update(SCREEN)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if RETRY_BUTTON.checkForInput(mouse_pos):
+                    countdown()
+                    play()
+                if MENU_BUTTON.checkForInput(mouse_pos):
+                    main_menu()
+                if QUIT_BUTTON.checkForInput(mouse_pos):
+                    pygame.quit()
+                    sys.exit()
+
+        pygame.display.update()
+        clock.tick(FPS)
+
 def play():
     pygame.mixer.music.stop()
     pygame.mixer.music.load("assets/game_music.mp3")
@@ -156,7 +262,6 @@ def play():
 
     player = Player()
     obstacle_group = pygame.sprite.Group()
-
     obstacle_timer = 0
     score = 0
     font = pygame.font.SysFont("Arial", 30)
@@ -168,6 +273,12 @@ def play():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    pause_menu(score)
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if pause_rect.collidepoint(event.pos):
+                    pause_menu(score)
 
         player.update()
         obstacle_group.update()
@@ -179,7 +290,7 @@ def play():
             obstacle_timer = 0
 
         if pygame.sprite.spritecollide(player, obstacle_group, False):
-            damage_sound.play()  # ✅ Play sound on damage
+            damage_sound.play()
             player.health -= 1
             obstacle_group.empty()
             if player.health <= 0:
@@ -195,6 +306,7 @@ def play():
         health_text = font.render(f"Health: {player.health}", True, WHITE)
         SCREEN.blit(score_text, (10, 10))
         SCREEN.blit(health_text, (10, 40))
+        SCREEN.blit(pause_icon, pause_rect)  # Draw pause icon
 
         pygame.display.flip()
 
@@ -202,7 +314,7 @@ def play():
     pygame.mixer.music.load("assets/menu_music.mp3")
     pygame.mixer.music.play(-1)
 
-    main_menu()
+    game_over_screen(score)
 
 def options():
     slider_x = 440
